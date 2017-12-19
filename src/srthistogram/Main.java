@@ -1,34 +1,27 @@
 package srthistogram;
 
-import java.io.IOException;
-
-import com.jonathanedgecombe.srt.InvalidTimestampFormatException;
-import com.jonathanedgecombe.srt.Subtitle;
-import com.jonathanedgecombe.srt.SubtitleFile;
-import com.jonathanedgecombe.srt.Timestamp;
-
 import picocli.CommandLine;
 import picocli.CommandLine.MissingParameterException;
 
 public class Main {
 
-	public static void main(String[] args) throws InvalidTimestampFormatException, IOException {
+	public static void main(String[] args) throws Exception {
 		try {
 			CmdOpts options = CommandLine.populateCommand(new CmdOpts(), args);
 			if(options.helpRequested) {
 				CommandLine.usage(options, System.out);
 				return;
 			}
-			System.out.println("Reading from: "+options.file.getAbsolutePath());
-			SubtitleFile exampleFile = new SubtitleFile(options.file);
+			System.out.println("INPUT FILE: "+options.file.getAbsoluteFile().toString());
+			SRTParser parser = new SRTParser(options.file);
 			int currentMinutes = 0;
 			int currentCount = 0;
-			for(Subtitle s : exampleFile.getSubtitles()) {
-				if(within1Minute(currentMinutes, s.getStartTime())) {
+			for(Subtitle s : parser) {
+				if(within1Minute(currentMinutes, s.startTime)) {
 					currentCount++;
 				}
 				else {
-					while(!within1Minute(currentMinutes, s.getStartTime())) { //fwd through empty minutes
+					while(!within1Minute(currentMinutes, s.startTime)) { //fwd through empty minutes
 						printHistogram(currentMinutes, currentCount);
 						currentMinutes++;
 						currentCount = 0;
@@ -36,13 +29,15 @@ public class Main {
 					currentCount = 1;
 				}
 			}
+			printHistogram(currentMinutes, currentCount);
+			System.out.println("NUMBER OF SUBTITLES: "+parser.size());
 		}
 		catch(MissingParameterException e) {
 			System.err.println("No SRT file was given, switch on -h for help");
 		}
 	}
 	public static boolean within1Minute(int min, Timestamp s) {
-		int timeStampMins = s.getHours() * 60 + s.getMinutes();
+		int timeStampMins = s.hours * 60 + s.minutes;
 		return min == timeStampMins;
 	}
 	public static void printHistogram(int min, int count) {
